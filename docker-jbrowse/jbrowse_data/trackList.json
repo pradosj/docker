@@ -1,0 +1,37 @@
+{
+   "formatVersion" : 1,
+   "tracks" : [
+      {
+         "storeClass" : "JBrowse/Store/Sequence/StaticChunked",
+         "key" : "Reference sequence",
+         "chunkSize" : 20000,
+         "category" : "Reference sequence",
+         "urlTemplate" : "seq/{refseq_dirpath}/{refseq}-",
+         "type" : "SequenceTrack",
+         "label" : "DNA"
+      },
+      {
+         "label" : "SA564 GFF",
+         "urlTemplate" : "tracks/SA564 GFF/{refseq}/trackData.json",
+         "key" : "SA564 GFF",
+         "trackType" : "CanvasFeatures",
+         "storeClass" : "JBrowse/Store/SeqFeature/NCList",
+         "compress" : 0,
+         "type" : "CanvasFeatures",
+         "style" : {
+            "className" : "feature"
+         }
+      },
+      {
+         "label" : "SVG7",
+         "type" : "SNPCoverage",
+         "urlTemplate" : "tracks/GCF_001281145.1_ASM128114v1_genomic_551_SVG7-12_L1.pe.bam",
+         "storeClass" : "JBrowse/Store/SeqFeature/BAM",
+         "chunkSizeLimit" : 30000000
+      }
+   ],
+   "names" : {
+      "url" : "names/",
+      "type" : "Hash"
+   }
+}
