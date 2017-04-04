@@ -1,0 +1,10 @@
+emote:
+  image: pradosj/docker-emote
+  environment:
+   - USER=EMOTE
+   - PASSWORD=EMOTE
+  ports:
+   - "8787:8787"
+  volumes:
+   - ./:/export
+
