@@ -63,9 +63,7 @@ RUN curl -kL https://ccb.jhu.edu/software/tophat/downloads/tophat-2.1.1.Linux_x8
     rm -rf /tmp/tophat-2.1.1.Linux_x86_64
 RUN curl -kL http://cole-trapnell-lab.github.io/cufflinks/assets/downloads/cufflinks-2.2.1.Linux_x86_64.tar.gz | tar -C /tmp -zxf - && \
     find /tmp/cufflinks-2.2.1.Linux_x86_64/ -maxdepth 1 -executable -type f -exec mv '{}' /usr/local/bin/ ';' && \
-    rm -rf /tmp/cufflinks-2.2.1.Linux_x86_64
-
-
+    rm -rf /tmp/cufflinks-2.2.1.Linux_x86_64    
 
 
 #-#-#-#-#-#-#-#-#-#-#-#-#
@@ -139,6 +137,14 @@ COPY mplp2vcf.cpp /tmp/
 RUN cd /tmp;g++ -O3 -Wall -std=c++0x -o /usr/local/bin/mplp2vcf -I/usr/local/include/htslib mplp2vcf.cpp -Lsrc/usr/htslib -Wl,-Bstatic -lhts -Wl,-Bdynamic -lz -lpthread
 
 
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# Bowtie
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+RUN curl -kL https://freefr.dl.sourceforge.net/project/bowtie-bio/bowtie/1.2.0/bowtie-1.2-linux-legacy-x86_64.zip -o /tmp/bowtie-1.2-linux-legacy-x86_64.zip && \
+    unzip /tmp/bowtie-1.2-linux-legacy-x86_64.zip -d /tmp && \
+    find /tmp/bowtie-1.2-legacy -maxdepth 1 -type f -executable -exec mv '{}' /usr/local/bin/ ';' && \
+    rm -rf /tmp/bowtie-1.2-linux-legacy-x86_64.zip /tmp/bowtie-1.2-legacy
 
 
 
