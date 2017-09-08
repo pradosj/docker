@@ -255,7 +255,8 @@ int main(int argc, const char **argv) {
       auto j = std::min_element(genotypes.begin(),genotypes.end(),[&a](const sample_gt& x,const sample_gt& y){return x.af(a,2)<y.af(a,2);});
       af_delta.push_back(i->af(a,1) - j->af(a,0));
     }
-    double max_af_delta = *std::max_element(af_delta.begin(),af_delta.end());
+    auto max_af_delta_ptr = std::max_element(af_delta.begin(),af_delta.end());
+    double max_af_delta = (max_af_delta_ptr==af_delta.end())?-1.0:*max_af_delta_ptr;
 
 
     // Update genotypes alternatives separately
