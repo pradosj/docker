@@ -107,7 +107,9 @@ RUN apt-get update && apt-get install -y \
     python2.7-dev \
     python-numpy \
     python-matplotlib \
-    python-pip
+    python-pip \
+    libbz2-dev \
+    liblzma-dev
 
 RUN pip install --upgrade pip && easy_install -U setuptools
 RUN pip install pysam MACS2 HTSeq
