@@ -150,6 +150,20 @@ RUN curl -kL https://freefr.dl.sourceforge.net/project/bowtie-bio/bowtie/1.2.0/b
 
 
 
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# Cutadapt & Fastx toolkit
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+RUN pip install --upgrade cutadapt
+RUN apt-get update && apt-get install -y fastx-toolkit
+
+
+
+
+
+
+
+
+
 # GATK
 # snpEff
 # Mfold/UNAfold
