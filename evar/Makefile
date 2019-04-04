@@ -44,7 +44,7 @@ BACKGROUND_BWT ?= $(REF:%.fa=%).bwt
 Makefile:/tmp/Makefile
 	cp /tmp/Makefile $@
 
-%.all:
+%.varcall:
 	$(MAKE) $*.preproc.filter.pass.rmdup.merged.bwamem.bam \
 					$*.preproc.filter.pass.rmdup.merged.bwamem.bam.bai \
 	        $*.bwamem.bam $*.bwamem.bam.bai \
