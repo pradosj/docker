@@ -22,7 +22,7 @@ RUN Rscript -e 'source("https://bioconductor.org/biocLite.R");biocLite(c("rtrack
 ADD Makefile /tmp/Makefile
 ADD Analyse_bam.R /tmp/Analyse_bam.R
 ADD SA564.fa SA564.gff /tmp/
-ENV MAKEFILES /tmp/Makefile
+#ENV MAKEFILES /tmp/Makefile
 
 WORKDIR /export
 

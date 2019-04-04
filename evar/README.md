@@ -1,19 +1,26 @@
 # evar
 
+Variants calling pipieline by *de novo* assembly using SGA, BWA, Samtools and R script for pool sequencing
 
-Variants calling pipieline by de novo assembly using SGA, BWA, Samtools and R script for pool sequencing
 
----------------------------------------------------------------------------------------------------------------------------------
+### Required input files
+The pipeline require several input files:
+* sequenced reads in FASTQ format:
+    * either single-end reads with file extension `.fastq.gz`
+    * either paired-end reads with file extension `_R1.fastq.gz` and `_R2.fastq.gz`
+* reference genome in FASTA format, with file extension `.fa`. This reference sequence can't contains N but only A,T,G,C
+* genomic annotation in GFF format, with extension `.gff`
+	
 
-files needed
 
-	reference genome in .fa 
-	genomic annotation in .gff
-	single-end one file fastq.gz or double-end two files R1.fastq.gz R2.fastq.gz
+### Quick start
+```
+docker run pradosj/evar
+```
 
-	! your reference can't have any N in place of A, T, G or C --> sript will crash
 
----------------------------------------------------------------------------------------------------------------------------------
+
+
 
 default parameters
 

@@ -1,20 +1,48 @@
 
--include Makefile.config
 
+############################# PIPELINE PARAMETERS ####################################################
+
+# Name of the reference genome in FASTA format which must not contain any N
 REF ?= /tmp/SA564.fa
-REF_GFF ?= /tmp/SA564.gff
-SGA_PREPROC_FLAGS ?= -r AGATCGGAAGAGCACACGTCTGAACTCCAGTC -c AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTG
-SGA_FILTER_FLAGS ?= -x10 -k35
-SGA_FMMERGE_FLAGS ?= -m35
-SGA_KMERCOUNT_FLAGS ?= -k35
-SGA_THREAD ?= -t4
-SGA_OVERLAP_FLAGS ?= -m35
-KMER_FILTER_THRESHOLD ?= 10
-BWA_KMERMAP_FLAGS ?= -T10
-BACKGROUND_BWT ?= $(REF:%.fa=%).bwt
 
+# Name of the GFF annotation file
+REF_GFF ?= /tmp/SA564.gff
+
+# Size of the k-mers to consider 
+KMER ?= 61
+
+# Minimum number of time a k-mer must be seen not to be considered a sequencing error
+KMER_NOISE_LEVEL ?= 10
+
+# Sequence of the adapter to trimmed at 3' ends of read1 and read2
+SGA_PREPROC_FLAGS ?= -r AGATCGGAAGAGCACACGTCTGAACTCCAGTC -c AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTG
+
+
+############################## OPTIONAL PARAMETERS ###################################################
+
+# Maximum number of thread SGA can use
+SGA_THREAD ?= -t4
+
+SGA_FILTER_FLAGS ?= -x$(KMER_NOISE_LEVEL) -k$(KMER)
+SGA_FMMERGE_FLAGS ?= -m$(KMER)
+SGA_KMERCOUNT_FLAGS ?= -k$(KMER)
+SGA_OVERLAP_FLAGS ?= -m$(KMER)
+
+# This control "BWA mem" mapping when mapping k-mers onto the contigs
+# Indeed, BWA mem is specialized in mapping long reads of ~100bp. 
+# When mapping smaller k-mers, we need to adjust the mimnimum mapping scores the mapper report.
+# Should be kept low for small k-mer size
+BWA_KMERMAP_FLAGS ?= -T10
+
+
+#################################################################################
+
+BACKGROUND_BWT ?= $(REF:%.fa=%).bwt
 .PRECIOUS: %.bwamem.bam %.bwt %.fa.pac %.preproc.bwt %.filter.pass.fa %.preproc.fa %.rmdup.merged.fa
 
+
+Makefile:/tmp/Makefile
+	cp /tmp/Makefile $@
 
 %.all:
 	$(MAKE) $*.preproc.filter.pass.rmdup.merged.bwamem.bam \
@@ -69,7 +97,7 @@ BACKGROUND_BWT ?= $(REF:%.fa=%).bwt
 	cd $(@D);sga fm-merge $(SGA_THREAD) $(SGA_FMMERGE_FLAGS) $(notdir $<)
 
 %.kmercount.tsv : %.bwt $(BACKGROUND_BWT)
-	sga kmer-count $(SGA_KMERCOUNT_FLAGS) $^ |awk '($$2>$(KMER_FILTER_THRESHOLD)) && ($$3>$(KMER_FILTER_THRESHOLD)) && ($$4==0) && ($$5==0)' > $@
+	sga kmer-count $(SGA_KMERCOUNT_FLAGS) $^ |awk '($$2>$(KMER_NOISE_LEVEL)) && ($$3>$(KMER_NOISE_LEVEL)) && ($$4==0) && ($$5==0)' > $@
 
 %.kmercount.fa : %.kmercount.tsv
 	cat $^ | awk '{print ">" NR "_" $$2 "_" $$3; print $$1}' > $@
