@@ -157,6 +157,12 @@ RUN pip install --upgrade cutadapt
 RUN apt-get update && apt-get install -y fastx-toolkit
 
 
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+# Jellyfish
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+RUN curl -kL https://github.com/gmarcais/Jellyfish/releases/download/v2.3.0/jellyfish-2.3.0.tar.gz | tar -C /tmp -zxf - && \
+    cd /tmp/jellyfish-2.3.0 && ./configure && make -j4 && make install && \
+    rm -rf /tmp/jellyfish-2.3.0
 
 
 
