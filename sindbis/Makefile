@@ -1,105 +1,127 @@
 
 
 
+#test command:
+#docker run --rm -v $(pwd):/export sindbis -j2 MOS5_P7_{S1,RN}.umi.class.viral.fasta
+#docker run --rm -v $(pwd):/export sindbis MOS5_P7_S1.umi.class.viral{.bowtie_index/index.1.ebwt,.self.bam.clusters.filter100.fasta}
+#docker run --rm -v $(pwd):/export sindbis MOS5_P7_S1.umi.class.viral.self.bam.clusters.filter100{.bowtie_index/index.1.ebwt,.bowtie_aln/MOS5_P7_RN.umi.class.viral.bam}
 
 
 all:
-	pwd
-	ls -lha
-	ls -lha /tmp
-	ls -lha /tmp/src
 
 
+
+.PHONY:%.sindbis/all
+%.sindbis/all:
+	$(MAKE) $*.sindbis/demux_report.txt
+	awk '$$1!="UNMAP.fastq.gz"{sub(".fastq.gz",".umi.tsv.gz",$$1);print "$*.sindbis/" $$1}' $*.sindbis/demux_report.txt | xargs $(MAKE)
+	
+	
+	
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+#
+# Demultiplexing & sequence parsing
+#
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
-
+# Generate demultiplexing table
+# Reverse complement the index sequence and only keep perfectly matching indexes
 .PRECIOUS:%.sindbis/indexmap.tsv
 %.sindbis/indexmap.tsv:%.index.tsv
-	mkdir -p $(@D) && Rscript -e 'source("/tmp/src/make.R");map <- make.indexmap("$<");write.table(map,"$@",sep="\t",quote=FALSE,row.names=FALSE)'
+	mkdir -p $(@D) && Rscript -e 'source("/tmp/src/make.R");map <- make_indexmap("$<");map <- subset(map,closest_index_mismatch<=0);write.table(map[c("seq","closest_index_name")],"$@",sep="\t",quote=FALSE,row.names=FALSE)'
+
+# optionally cut reads to a size of 105bp
+%.105bp.fastq.gz:%.fastq.gz
+	gzip -dc $< | awk 'NR%2==0{$$0=substr($$0,1,105)}{print}' | pigz > $@
+
+# Demultiplex FASTQ reads according to indexmap
+.PRECIOUS:%.sindbis/demux_report.txt
+%.sindbis/demux_report.txt:%.sindbis/indexmap.tsv %.fastq.gz
+	gzip -dc $(word 2,$^) | awk -v indexmap='$(word 1,$^)' -v odir='$(@D)' -f /tmp/src/fq_demux.awk 
 
 
-# demultiplex, UMI depuplicate, and classify reads of a FASTQ resulting from a SINDBIS experiment
+# Generate UMI depuplicated table of the Barcodes found in the FASTQ reads
 # ignore reads with an N in the UMI or in the barcode
-# ignore reads whose index do not match perfectly with the expected index name
-# allow 1 mismatch in the spike sequence
-.PRECIOUS:%.sindbis/demux_UMIdedup_classified.tsv.gz
-%.sindbis/demux_UMIdedup_classified.tsv.gz:%.sindbis/indexmap.tsv %.fastq.gz
-	gzip -dc $(word 2,$^) | awk -v indexmap='$(word 1,$^)' -f /tmp/src/fastq_demux.awk | \
-	awk 'BEGIN{OFS="\t"}$$2<=0 && $$4!~/N/ && $$5!~/N/{print $$1,$$4,$$5}' | LC_ALL=C sort --parallel=6 --buffer-size=75% --compress-program=pigz | uniq -c | \
-	awk 'BEGIN{OFS="\t";print "index.name","umi","bc32","umi.freq","class"; \
-	           yy["CC"]=yy["TT"]=yy["CT"]=yy["TC"]=0;} \
-	           spike["AACAGTCA"]=spike["ACCAGTCA"]=spike["AGCAGTCA"]=spike["ATAAGTCA"]=spike["ATCAATCA"]=spike["ATCACTCA"]=spike["ATCAGACA"]=spike["ATCAGCCA"]=spike["ATCAGGCA"]=spike["ATCAGTAA"]=spike["ATCAGTCA"]=spike["ATCAGTCC"]=spike["ATCAGTCG"]=spike["ATCAGTCT"]=spike["ATCAGTGA"]=spike["ATCAGTTA"]=spike["ATCATTCA"]=spike["ATCCGTCA"]=spike["ATCGGTCA"]=spike["ATCTGTCA"]=spike["ATGAGTCA"]=spike["ATTAGTCA"]=spike["CTCAGTCA"]=spike["GTCAGTCA"]=spike["TTCAGTCA"]=0; \
-	     {cl="unknown";bc32=$$4; \
-	      if (substr(bc32,25,8) in spike){cl="spike"} else {if (substr(bc32,31,2) in yy) cl="viral"}; \
-	      print $$2,$$3,bc32,$$1,cl}' | pigz > $@
+%.umi.tsv.gz:%.fastq.gz
+	gzip -dc $(word 1,$^) | \
+	awk 'BEGIN{OFS="\t"}(NR%4==2){umi=substr($$0,95,12);bc32=substr($$0,1,32);if ((umi!~/N/) && (bc32!~/N/)){print umi,bc32;}}' | \
+	LC_ALL=C sort --parallel=6 --buffer-size=75% --compress-program=pigz | uniq -c | \
+	awk 'BEGIN{OFS="\t";print "umi","bc32","umi_freq";}{print $$2,$$3,$$1}' | pigz > $@
+	
+
+# Classify reads accoring to the content of the bc32 barcode
+# Allow 1 mismatch in the spike sequence
+.PRECIOUS:%.umi.class.tsv.gz
+%.umi.class.tsv.gz:%.umi.tsv.gz
+	gzip -dc $(word 1,$^) | \
+	awk 'BEGIN{ \
+	       OFS="\t"; \
+	       print "umi","bc32","umi_freq","class"; \
+	       yy["CC"]=yy["TT"]=yy["CT"]=yy["TC"]=0; \
+	       spike["AACAGTCA"]=spike["ACCAGTCA"]=spike["AGCAGTCA"]=spike["ATAAGTCA"]=spike["ATCAATCA"]=spike["ATCACTCA"]=spike["ATCAGACA"]=spike["ATCAGCCA"]=spike["ATCAGGCA"]=spike["ATCAGTAA"]=spike["ATCAGTCA"]=spike["ATCAGTCC"]=spike["ATCAGTCG"]=spike["ATCAGTCT"]=spike["ATCAGTGA"]=spike["ATCAGTTA"]=spike["ATCATTCA"]=spike["ATCCGTCA"]=spike["ATCGGTCA"]=spike["ATCTGTCA"]=spike["ATGAGTCA"]=spike["ATTAGTCA"]=spike["CTCAGTCA"]=spike["GTCAGTCA"]=spike["TTCAGTCA"]=0; \
+	     } \
+	     (NR>1){ \
+	       cl="unknown";bc32=$$2; \
+	       if (substr(bc32,25,8) in spike){cl="spike"} else {if (substr(bc32,31,2) in yy) cl="viral"}; \
+	       print $$1,$$2,$$3,cl; \
+	     }' | pigz > $@
+
+# extract a FASTA with unique viral barcodes from a umi.class.tsv.gz file
+.PRECIOUS:%.umi.class.viral.fasta
+%.umi.class.viral.fasta:%.umi.class.tsv.gz
+	gzip -dc $(word 1,$^) | awk '$$NF=="viral"{print $$2}' | sort | uniq -c | awk '$$1>=1{print ">" $$2 "_" $$1 "\n" $$2}' > $@
 
 
-# split the demultiplexed result to have 1 file per pup
-.PRECIOUS:%/demux_UMIdedup_classified.by_pup/pups.txt
-%/demux_UMIdedup_classified.by_pup/pups.txt:%/demux_UMIdedup_classified.tsv.gz
-	mkdir -p $(@D) && gzip -dc $< | \
-	awk 'NR==1{hdr=$$0;next} \
-	     {pup=$$1;sub("_.*","",pup)} \
-	     (!(pup in f)){f[pup]="$(@D)/" pup ".pup.tsv";print hdr > f[pup]} \
-	     {print $$0 > f[pup]} \
-	     END{for(i in f){print i,f[i]}}' > $@
 
 
-# extract a FASTA with viral barcodes from S1 Injection site
-.PRECIOUS:%.pup.viralS1.fasta
-%.pup.viralS1.fasta:%.pup.tsv
-	awk '$$1~/S1InjSite/ && $$NF=="viral"{print $$3}' $< | sort | uniq -c | awk '$$1>=1{print ">" $$2 "_" $$1 "\n" $$2}' > $@
 
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+#
+# Injection-sites self mapping for barcode error correction
+#
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
-# index a FASTA sequence with bowtie
-.PRECIOUS:%.bowtie/index.1.ebwt
-%.bowtie/index.1.ebwt:%.fasta
-	Rscript -e 'library("Rbowtie");bowtie_build("$<","$(@D)")'
+# index a FASTA sequence with bowtie_index
+.PRECIOUS:%.bowtie_index/index.1.ebwt
+%.bowtie_index/index.1.ebwt:%.fasta
+	 Rscript -e 'library("Rbowtie");bowtie_build("$<","$(@D)")'
 
-
-# Map a FASTA on itself with bowtie, and generate a BAM
+# Map a fasta against himself
 .PRECIOUS:%.self.bam
-%.self.bam:%.fasta %.bowtie/index.1.ebwt
-	Rscript -e 'source("/tmp/src/make.R");bowtie.map("$(word 1,$^)","$*.bowtie/index","$@")'
-
+%.self.bam:%.fasta %.bowtie_index/index.1.ebwt
+	Rscript -e 'source("/tmp/src/make.R");bowtie_map("$(word 1,$^)","$*.bowtie_index/index","$@")'
 
 # Find sequence clusters from a BAM generated by self-mapping a FASTA 
 .PRECIOUS:%.self.bam.clusters.tsv
 %.self.bam.clusters.tsv:%.self.bam
-	Rscript -e 'source("/tmp/src/make.R");k <- make.barcode.cluster("$<");write.table(k,"$@",sep="\t",quote=FALSE,row.names=FALSE)'
-
+	Rscript -e 'source("/tmp/src/make.R");k <- make_barcode_cluster("$<");write.table(k,"$@",sep="\t",quote=FALSE,row.names=FALSE)'
 
 # Generate a FASTA with the centers of the clusters that have >=100 barcodes
-.PRECIOUS:%.self.bam.clusters.filtered.fasta
-%.self.bam.clusters.filtered.fasta:%.self.bam.clusters.tsv
-	awk 'BEGIN{FS="\t"} \
-	     $$7>=100 && $$6=="TRUE"{print ">" $$1 "_" $$3 "_" $$7;print $$5}' $< > $@
+.PRECIOUS:%.self.bam.clusters.filter100.fasta
+%.self.bam.clusters.filter100.fasta:%.self.bam.clusters.tsv
+	awk 'BEGIN{FS="\t"} ($$7>=100 && $$6=="TRUE"){print ">" $$1 "_" $$3 "_" $$7;print $$5}' $< > $@
 
 
 
-# For a given pup, generate the FASTA of all viral barcodes
-.PRECIOUS:%.pup.viralUniq.fasta
-%.pup.viralUniq.fasta:%.pup.tsv
-	awk '$$NF=="viral"{print $$3}' $< | sort | uniq | awk '{print ">" $$1 "\n" $$1}' > $@
 
 
-# For a given pup, map the viral barcodes to the S1 injection sites clusters
-.PRECIOUS:%.pup.viralUniq.bam
-%.pup.viralUniq.bam:%.pup.viralUniq.fasta %.pup.viralS1.self.bam.clusters.filtered.bowtie/index.1.ebwt
-	Rscript -e 'source("/tmp/src/make.R");bowtie.map("$(word 1,$^)","$*.pup.viralS1.self.bam.clusters.filtered.bowtie/index","$@")'
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+#
+# Barcode mapping onto a reference library of barcodes
+#
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
+# Map any fasta onto a given ref
+.PRECIOUS:%.bam
+%.bam:
+	$(MAKE) $(@D:%.bowtie_aln=%.bowtie_index)/index.1.ebwt 
+	mkdir -p $(@D) && $(MAKE) $(@D)/../$(notdir $*).fasta
+	Rscript -e 'source("/tmp/src/make.R");bowtie_map("$(@D)/../$(notdir $*).fasta","$(@D:%.bowtie_aln=%.bowtie_index)/index","$@")'
+
+%.tsv.gz:%.viral.bam
+	$(MAKE) $(@D)/../$(notdir $*).tsv.gz
+	Rscript -e 'source("/tmp/src/make.R");make_cluster_assignment("$(@D)/../$(notdir $*).tsv.gz","$(word 1,$^)","$@")'
 
 
-.PRECIOUS:%.pup.S1mapped.tsv.gz
-%.pup.S1mapped.tsv.gz:%.pup.tsv %.pup.viralUniq.bam
-	Rscript -e 'source("/tmp/src/make.R");make.cluster.assignment("$(word 1,$^)","$(word 2,$^)","$@")'
-
-.PHONY:%.sindbis/all
-%.sindbis/all:%.sindbis/demux_UMIdedup_classified.by_pup/pups.txt
-	cut -f2 -d' ' $< | sed 's/.pup.tsv/.pup.viralS1.self.bam.clusters.filtered.fasta/' | xargs make
-	cut -f2 -d' ' $< | sed 's/.pup.tsv/.pup.S1mapped.tsv.gz/' | xargs make
-
-
-%.105bp.fastq.gz:%.fastq.gz
-	gzip -dc $< | awk 'NR%2==0{$$0=substr($$0,1,105)}{print}' | pigz > $@
 
 
