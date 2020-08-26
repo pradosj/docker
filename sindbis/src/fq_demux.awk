@@ -1,9 +1,9 @@
 #!/usr/bin/awk -f
-#usage: zcat file.fastq.gz | awk -v indexmap=index_map.tsv -v odir=output_directory -f fastq_demux.awk -
+#usage: zcat file.fastq.gz | awk -v demuxmap=index_map.tsv -v odir=output_directory -f fastq_demux.awk -
 
 BEGIN{
   FS=OFS="\t"; # set output separator
-  while(getline < indexmap) map[$1]=$2  # Load demultiplex sequences mapping
+  while(getline < demuxmap) map[$1]=$2  # Load demultiplex sequences mapping
 }
 
 # Store 4 lines of a read into array r[]

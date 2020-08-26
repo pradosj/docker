@@ -6,13 +6,14 @@
 # WHICH REGION IS EACH READ COMING FROM?
 # build the index mapping file that associates to any sequence an index (corresponding to a region)
 #-#-#-#-#-#-#-#-#-#
-make_indexmap <- function(index_file) {
+make_demuxmap <- function(index_file) {
   library(IRanges)
   library(Biostrings)
   library(Biobase)
   
   index <- as(read.table(index_file,sep="\t",header=TRUE,stringsAsFactors = FALSE),"DataFrame")
   index$sequence <- DNAStringSet(gsub(" *","",index$sequence))
+  index <- index[grepl("(.*)_(.*)",index$name),]
   
   # determine minimal barcode distance
   local({
