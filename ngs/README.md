@@ -16,6 +16,15 @@ The current version include:
 * MACS2
 
 
+
+
+Example usage to map contigs onto a reference genome with `BWA mem`.
 ```
-docker run -it -v $(pwd):/export pradosj/docker-ngs
+docker run --rm -v $(pwd):/export pradosj/ngs 'bwa index ref.fa && bwa mem -t4 ref.fa contigs.fasta | samtools view -Sb - | samtools sort -o contigs.bam - && samtools index contigs.bam'
 ```
+
+
+
+
+
+

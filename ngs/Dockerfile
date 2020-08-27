@@ -191,7 +191,8 @@ RUN curl -kL https://github.com/gmarcais/Jellyfish/releases/download/v2.3.0/jell
 
 
 VOLUME ["/export/"]
-ENTRYPOINT ["/bin/bash"]
+WORKDIR /export
+ENTRYPOINT ["/bin/bash","-c"]
 #EXPOSE :80
 
 
